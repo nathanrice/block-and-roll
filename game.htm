@@ -1,0 +1,330 @@
+<canvas id="gameWindow" width="1280" height="720"></canvas>
+<script>
+/**
+ * Main Game class.
+ */
+class Game {
+
+	/**
+	 * Constructor.
+	 *
+	 * Get the canvas/context and the map to be used.
+	 */
+	constructor() {
+
+		this.canvas = document.getElementById( 'gameWindow' );
+		this.ctx    = this.canvas.getContext( '2d' );
+		this.map    = this.getMap();
+
+	}
+
+	/**
+	 * Get the correct map depending on conditions.
+	 */
+	getMap() {
+
+		return new Map1_1( this.ctx );
+
+	}
+
+	/**
+	 * Start the game loop, load the game map.
+	 */
+	start() {
+
+		setInterval( this.drawFrame.bind(this), 1000/30 );
+		this.map.load();
+
+	}
+
+	/**
+	 * Callback for our game loop. Runs 30x/sec.
+	 */
+	drawFrame() {
+
+		this.map.draw( this.ctx );
+
+	}
+
+}
+
+/**
+ * Map class template. Extend this class and define new property values to create new maps.
+ */
+class Map {
+
+	/**
+	 * Constructor.
+	 *
+	 * Pull in the canvas context, set the height/width of the canvas,
+	 * set background and gravity properties, and ensure Player is valid.
+	 */
+	constructor( ctx ) {
+
+		this.ctx = ctx;
+
+		// Canvas dimensions
+		this.ctx.canvas.width  = this.width  = 1024;
+		this.ctx.canvas.height = this.height = 576;
+
+		// Corners
+		this.topLeft = { x: 0, y: 0 };
+		this.topRight = { x: this.width, y: 0 };
+		this.bottomLeft = { x: 0, y: this.height };
+		this.bottomRight = { x: this.width, y: this.height };
+
+		// Physics params
+		this.gravity        = -1;
+		this.airFriction    = 0.9;
+		this.groundFriction = 0.9;
+
+		// The player
+		this.player = new Player( this );
+
+	}
+
+	load() {
+
+
+
+	}
+
+	/**
+	 * Draw the background based on its properties.
+	 */
+	drawBackground() {
+
+		let shape = new Shape( this.ctx );
+		shape.drawRect( "#000000", 0, 0, this.width, this.height );
+
+	}
+
+	drawGround() {
+
+		let shape = new Shape( this.ctx );
+		shape.drawRect( "#dddddd", 0, this.height - 30, this.width, 30 );
+
+	}
+
+	drawPlayer() {
+
+		this.player.draw( this.ctx );
+
+	}
+
+	animationLogic() {
+
+		this.player.animate();
+
+	}
+
+	/**
+	 * Draw the map and all its members 30x/sec.
+	 */
+	draw() {
+
+		this.animationLogic();
+
+		this.drawBackground();
+		this.drawGround();
+		this.drawPlayer();
+
+	}
+
+}
+
+class Map1_1 extends Map {
+
+	constructor( ctx, player ) {
+
+		super( ctx, player );
+
+	}
+
+}
+
+class Character {
+
+	constructor( map ) {
+
+		this.map = map;
+		this.ctx = this.map.ctx;
+
+		this.name     = name;
+		this.xPos     = 0;
+		this.yPos     = 0;
+		this.color    = '#ffffff';
+		this.width    = 30;
+		this.height   = 60;
+
+		this.mass     = 1;
+		this.speed    = 3;
+		this.xv       = 0;
+		this.yv       = 0;
+		this.jv       = 10; // jump velocity
+		this.inAir    = true;
+		this.canJump  = false;
+
+		this.control  = new Control( this );
+
+	}
+
+	draw() {
+
+		let shape = new Shape( this.ctx );
+		shape.drawRect( this.color, this.xPos, this.yPos, this.width, this.height );
+
+	}
+
+
+
+}
+
+class Player extends Character {
+
+	constructor( map ) {
+
+		super( map );
+
+		this.name    = "Block";
+		this.width   = 30;
+		this.height  = 60;
+		this.mass    = 2;
+		this.canJump = true;
+		this.xPos    = map.bottomLeft.x + 10;
+		this.yPos    = map.bottomLeft.y - 300;
+		this.color   = "#ffffff";
+
+	}
+
+	physics() {
+
+		let weight = this.mass * this.map.gravity;
+
+		// x Friction
+		this.xv = false == this.inAir ? this.map.groundFriction : this.map.airFriction;
+
+		// y Friction
+		//this.yv = this.map.airFriction;
+
+		if ( this.canJump && this.control.holdUp && false == this.inAir ) {
+			this.yv   += this.jv;
+			this.inAir = true;
+		}
+
+		if ( this.control.holdLeft ) {
+			this.xv = -this.speed;
+		}
+
+		if ( this.control.holdRight ) {
+			this.xv = this.speed;
+		}
+
+		//
+		// if ( ! this.character.inAir ) {
+		// 	this.character.xv *= 0.8;
+		// }
+		// else {
+		// 	this.character.yv = map.gravity;
+		// }
+
+		// if ( this.xv < this.maxSpeed ) {
+		// 	this.xv += this.accel;
+		// }
+
+		// weight
+		this.yv *= weight;
+
+		// Floor
+		if ( this.yPos > this.map.bottomLeft.y - 30 - 60 ) {
+			this.yPos = this.map.bottomLeft.y - 30 - 60;
+			this.yv = 0;
+			this.inAir = false;
+		}
+
+		// Move
+		this.xPos += this.xv;
+		this.yPos -= this.yv;
+
+		this.xPos = 1 > this.xPos ? 0 : this.xPos;
+		this.yPos = 1 > this.yPos ? 0 : this.yPos;
+
+	}
+
+	animate() {
+
+		this.physics();
+
+
+
+		console.log( "xPos: " + this.xPos + " yPos: " + this.yPos );
+
+	}
+
+}
+
+class Control {
+
+	constructor( character ) {
+
+		this.character = character;
+
+		this.holdLeft  = false;
+		this.holdRight = false;
+		this.holdUp    = false;
+		this.canJump   = false;
+
+		window.addEventListener( "keydown", this.keyListener.bind( this ) );
+		window.addEventListener( "keyup", this.keyListener.bind( this ) );
+
+	}
+
+	keyListener( e ) {
+
+		var keyState = ( e.type == "keydown" ) ? true : false;
+
+		switch( e.keyCode ) {
+
+			case 37: // left key
+				this.holdLeft = keyState;
+				break;
+			case 38: // up key
+				this.holdUp = keyState;
+				break;
+			case 39: // right key
+				this.holdRight = keyState;
+				break;
+
+		}
+
+	}
+
+}
+
+class Shape {
+
+	constructor( ctx ) {
+
+		this.ctx = ctx;
+
+	}
+
+	drawRect( color = null, xPos = null, yPos = null, width = null, height = null ) {
+
+		color  = color  || "#000000";
+		width  = width  || 10;
+		height = height || 10;
+		xPos   = xPos   || 0;
+		yPos   = yPos   || 0;
+
+		this.ctx.fillStyle = color;
+		this.ctx.fillRect( xPos, yPos, width, height );
+
+	}
+
+}
+
+var game = new Game();
+game.start();
+
+</script>
